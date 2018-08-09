@@ -70,43 +70,45 @@
         {{tiptitle}}
       </md-dialog-title>
       <md-content>
-        <div v-if="cannotadd">
+        <!-- 添加配属 -->
+        <div v-if="distribution">
           <p>{{tipinfo}}</p>
         </div>
-        <div v-else-if="changeOnUnder">
+        <!-- 不可配属 -->
+        <div v-else-if="undistribution">
           <p>{{tipinfo}}</p>
         </div>
-        <div v-else-if="remove">
+        <!-- 卸载 -->
+        <div v-else-if="uninstall">
           <table>
             <tr>
-              <td>
-                卸载原因：
-              </td>
+              <td>卸载原因：</td>
               <td>
                 <md-field>
                   <md-select v-model="reason" name="reason" id="reason">
-                    <md-option value="good">良品卸载</md-option>
-                    <md-option value="bad">报废卸载</md-option>
+                    <md-option value="ordinary">良品卸载</md-option>
+                    <md-option value="scrap">报废卸载</md-option>
                   </md-select>
                 </md-field>
               </td>
             </tr>
           </table>
-          <md-field v-if="reason == 'bad'">
+          <md-field v-if="reason == 'scrap'">
             <label>报废说明</label>
             <md-textarea v-model="scrapRemark"></md-textarea>
           </md-field>
         </div>
-        <div v-else>
-          {{tipinfo}}
-          <div v-if="anyparents">
-            请选择需要配属的设备
-            <md-field>
-              <md-select v-model="singleselect" name="singleselect" id="singleselect" @md-selected="handleSelect">
-                <md-option v-for="(v, k) in childrenItem" :value="v.deviceid" :key="k">{{v.devicecode}}</md-option>
-              </md-select>
-            </md-field>
-          </div>
+        <!-- 更换 -->
+        <div v-else-if="replace">
+          <p>{{tipinfo}}</p>
+        </div>
+        <div v-else-if="anyparents">
+          <p>{{tipinfo}}</p>
+          <md-field>
+            <md-select v-model="singleselect" name="singleselect" id="singleselect" @md-selected="handleSelect">
+              <md-option v-for="(v, k) in childrenItem" :value="v.deviceid" :key="k">{{v.devicecode}}</md-option>
+            </md-select>
+          </md-field>
         </div>
       </md-content>
       <md-dialog-actions>
@@ -125,6 +127,93 @@
       return items.filter(item => item.devicecode.includes(term))
     }
     return items
+  }
+  /**
+   * @param item1 数据1
+   * @param itemType 数据类型(父：0；子：1)
+   * @param handleType 操作类型(卸载：0；添加：1)
+   * @param item2 数据2
+   */
+  const changeDeviceData = (item1, itemType, handleType, item2) => {
+    let device = {
+      id: null,
+      devicecode: '',
+      unitid: '',
+      productiondate: 0,
+      createdate: 0,
+      firstusedate: 0,
+      devicetypeid: '',
+      devicekindid: '',
+      devicestatus: null,
+      devicekindname: '',
+      unitname: '',
+      traintypename: '',
+      devicetypename: '',
+      deviceid : '',
+      parentid: "",
+      children: null,
+      updatetime: null
+    }
+    let children = item2.children
+    if (itemType == 0) { // 父
+      device.id = item1.id
+      device.devicecode = item1.devicecode
+      device.unitid = item1.unitid
+      device.productiondate = item1.productiondate
+      device.createdate = item1.createdate
+      device.firstusedate = item1.firstusedate
+      device.devicetypeid = item1.devicetypeid
+      device.devicekindid = item1.devicekindid
+      device.devicestatus = item1.devicestatus
+      device.devicekindname = item1.devicekindname
+      device.unitname = item1.unitname
+      device.traintypename = item1.traintypename
+      device.devicetypename = item1.devicetypename
+      device.deviceid = item1.deviceid
+      device.children = item1.children
+      device.parentid = item1.parentid
+      device.updatetime = item1.updatetime
+      if (handleType == 0) { // 卸载
+        for (let i=0;i<children.length;i++) {
+          for (let j=0;j<device.children.length;j++) {
+            if (device.children[j] == children[i]) {
+              device.children.splice(j, 1);
+            }
+          }
+        }
+        let index = device.children.indexOf(item2.deviceid)
+        if (index >= 0) {
+          device.children.splice(index, 1)
+        }
+      } else { // 添加
+        let newChildren = device.children.concat(children)
+        newChildren.push(item2.deviceid)
+        device.children = newChildren
+      }
+    } else { // 子
+      device.id = item2.id
+      device.devicecode = item2.devicecode
+      device.unitid = item2.unitid
+      device.productiondate = item2.productiondate
+      device.createdate = item2.createdate
+      device.firstusedate = item2.firstusedate
+      device.devicetypeid = item2.devicetypeid
+      device.devicekindid = item2.devicekindid
+      device.devicestatus = item2.devicestatus
+      device.devicekindname = item2.devicekindname
+      device.unitname = item2.unitname
+      device.traintypename = item2.traintypename
+      device.devicetypename = item2.devicetypename
+      device.deviceid = item2.deviceid
+      device.children = item2.children
+      device.updatetime = item2.updatetime
+      if (handleType == 0) { // 卸载
+        device.parentid = null
+      } else { // 添加
+        device.parentid = item1.deviceid
+      }
+    }
+    return device
   }
 
   export default {
@@ -158,27 +247,26 @@
         clickOutSide: false, // 点击外部不关闭dialog
         search: '',
         searched: [],
-        selectedOnDevice: [],
-        selectedUnderDevice: [],
+        selectedOnDevice: null,
+        selectedUnderDevice: null,
         selectedPath: [],
         selectedNodeid: '',
         onDevice: [],
         underDevice: [],
-        reason: '',
-        scrapRemark: '',
-        remove: false,
         allOnCurrentDevice: [],
         allUnderCurrentDevice: [],
+        distribution: false, // 添加配属
+        undistribution: false, // 不可添加
+        uninstall: false, // 卸载
+        replace: false, // 更换
+        anyparents: false, // 多个父级
+        reason: '',
+        scrapRemark: '',
         tipinfo: '',
         tiptitle: '',
-        underDeviceHasParent: false,
-        changeOnUnder: false,
-        addDeviceNoParent: false,
-        addDeviceHasParent: false,
-        cannotadd: false, // 不能添加
-        anyparents: false, // 有多个父级设备，选择给哪个设备添加子
         childrenItem: [],
-        singleselect: null
+        singleselect: null,
+        msg: []
       }
     },
     methods: {
@@ -195,187 +283,121 @@
         this.searched = searchDevice(this.underDevice, this.search)
       },
       changeDevice() {
-        if (this.$utils.isEmptyObject(this.selectedOnDevice)) {
-          this.snackbarActive = true
-          this.snackbarInfo = '请选择需要更换的设备'
-          return false
-        }
-        if (this.$utils.isEmptyObject(this.selectedUnderDevice)) {
-          this.snackbarActive = true
-          this.snackbarInfo = '请选择需要配属的设备'
-          return false
-        }
-        this.tiptitle = '更换设备'
-        this.changeOnUnder = true
-        if (this.selectedUnderDevice.parentid != '') {
-          this.tipinfo = '当前选择的“其他设备”已经配属在别的设备上，是否卸载并且更换？'
-          this.underDeviceHasParent = true
-        } else {
-          this.tipinfo = '是否更换设备？'
-        }
-        this.showDialog = true
+
       },
-      removeDevice() {
-        if (this.$utils.isEmptyObject(this.selectedOnDevice)) {
-          this.snackbarActive = true
-          this.snackbarInfo = '请选择需要卸载的设备'
-          return false
-        }
-        this.remove = true
-        this.tiptitle = '卸载设备'
-        this.showDialog = true
+      removeDevice () {
+
       },
       addDevice() {
-        if (this.$utils.isEmptyObject(this.selectedUnderDevice)) {
+        let this_ = this
+        if (this.selectedUnderDevice == null) {
           this.snackbarActive = true
           this.snackbarInfo = '请选择需要配属的设备'
           return false
         }
         this.tiptitle = '添加设备'
-        this.addDeviceNoParent = true
-        if (this.selectedUnderDevice.parentid != '') {
-          this.tipinfo = '当前选择设备已经配属在别的设备上，是否卸载并且添加？'
-          this.addDeviceHasParent = true
-        } else {
-          this.tipinfo = '是否添加设备？'
-        }
-        let typeid = this.selectedUnderDevice.devicetypeid
-        let ptypeid = this.$utils.getParentidByTypeid(this.typeData, typeid)
-        let this_ = this
-        let childrenItem = this.allOnCurrentDevice
         this.childrenItem = []
-        for (let i = 0; i < childrenItem.length; i++) {
-          if (childrenItem[i].devicetypeid == ptypeid) {
-            this_.childrenItem.push(childrenItem[i])
+        let childrenDevices = this.$route.params.item.children // 最顶级设备的children
+        let selectTypeid = this.selectedUnderDevice.devicetypeid // 选择节点的typeid
+        let selectNodeParenttypeid = this.$utils.getParentidByTypeid(this.typeData, selectTypeid) // 选择节点的父级typeid
+        if (selectNodeParenttypeid == this.$route.params.item.devicetypeid) {
+          this.distribution = true
+          this.tiptitle = '添加配属'
+          this.tipinfo = '确定配属该设备？'
+        } else {
+          childrenDevices.forEach(function (item) {
+            let itemIndex = this_.deviceDataIndex[item]
+            let deviceItem = this_.$store.state.deviceData[itemIndex]
+            if (deviceItem.devicetypeid == selectNodeParenttypeid) {
+              this_.childrenItem.push(deviceItem)
+            }
+          })
+          if (this.childrenItem.length > 0) {
+            this.anyparents = true
+            this.tiptitle = "添加配属"
+            this.tipinfo = '请选择要添加配属的设备'
+          } else {
+            this.undistribution = true
+            this.tiptitle = "添加配属"
+            this.tipinfo = '当前没有可添加配属的设备，请先添加父级设备'
           }
-        }
-        if (this.$route.params.item.devicetypeid != ptypeid && this.childrenItem.length == 0) { // 为空不可添加子
-          this.tipinfo = '当前不可添加设备，请先添加上一级设备！'
-          this.cannotadd = true
-        } else if (this.childrenItem.length > 0) { // 有多个出现下拉框选择给哪一个添加子
-          this.anyparents = true
-          this.tipinfo = ''
         }
         this.showDialog = true
       },
       dialogConfirm() {
-        if (this.changeOnUnder) {
-          this.$utils.clearParentRelation(this.deviceData, this.deviceDataIndex, this.selectedOnDevice)
-          if (this.underDeviceHasParent) {
-            this.$utils.clearParentRelation(this.deviceData, this.deviceDataIndex, this.selectedUnderDevice)
-          }
-          this.$utils.addParentRelation(this.deviceData, this.deviceDataIndex, this.selectedUnderDevice, this.selectedOnDevice.parentid)
-          let currentParentid = this.selectedOnDevice.parentid
-          this.selectedUnderDevice.parentid = currentParentid
-          this.selectedOnDevice.parentid = ''
-          let index = this.onDevice.indexOf(this.selectedOnDevice)
-          if (index >= 0) {
-            this.onDevice.splice(index, 1)
-          }
-          index = this.allOnCurrentDevice.indexOf(this.selectedOnDevice)
-          if (index >= 0) {
-            this.allOnCurrentDevice.splice(index, 1)
-          }
-          index = this.underDevice.indexOf(this.selectedUnderDevice)
-          if (index >= 0) {
-            this.underDevice.splice(index, 1)
-          }
-          index = this.allUnderCurrentDevice.indexOf(this.selectedUnderDevice)
-          if (index >= 0) {
-            this.allUnderCurrentDevice.splice(index, 1)
-          }
-          this.onDevice.push(this.selectedUnderDevice)
-          this.underDevice.push(this.selectedOnDevice)
-          this.searched = this.underDevice
-          this.allOnCurrentDevice.push(this.selectedUnderDevice)
-          this.allUnderCurrentDevice.push(this.selectedOnDevice)
-          this.selectedOnDevice = null
-          this.selectedUnderDevice = null
-        } else if (this.addDeviceNoParent) {
-          if (this.underDeviceHasParent) {
-            this.$utils.clearParentRelation(this.deviceData, this.deviceDataIndex, this.selectedUnderDevice)
-          }
-          let deviceid = this.$route.params.item.deviceid
-          this.selectedUnderDevice.parentid = this.$route.params.item.deviceid
-          if (this.anyparents) {
-            if (this.singleselect == null) {
-              this.snackbarActive = true
-              this.snackbarInfo = '请选择需要配属的设备'
-              return false
-            } else {
-              if (deviceid != this.singleselect) {
-                deviceid = this.singleselect
-                this.selectedUnderDevice.parentid = deviceid
-                this.$utils.addParentRelation(this.deviceData, this.deviceDataIndex, this.selectedUnderDevice, deviceid)
-              } else {
-                this.$utils.addParentRelation(this.deviceData, this.deviceDataIndex, this.selectedUnderDevice, this.$route.params.item.deviceid)
-              }
-            }
+        let this_ = this
+        let actiondata = []
+        let parentItem = null
+        let childItem = null
+        if (this.uninstall) {
+
+        } else if (this.replace) {
+
+        } else {
+          if (this.distribution) {
+            parentItem = changeDeviceData(this.$route.params.item, 0, 1, this.selectedUnderDevice)
+            childItem = changeDeviceData(this.$route.params.item, 1, 1, this.selectedUnderDevice)
+            actiondata.push(parentItem)
+            actiondata.push(childItem)
           } else {
-            this.$utils.addParentRelation(this.deviceData, this.deviceDataIndex, this.selectedUnderDevice, this.$route.params.item.deviceid)
+            
           }
-          let index = this.underDevice.indexOf(this.selectedUnderDevice)
-          if (index >= 0) {
-            this.underDevice.splice(index, 1)
+
+          let data = {
+            actioninfo : {
+              name: "deviceData",
+              type: "update"
+            },
+            actiondata: actiondata
           }
-          index = this.allUnderCurrentDevice.indexOf(this.selectedUnderDevice)
-          if (index >= 0) {
-            this.allUnderCurrentDevice.splice(index, 1)
-          }
-          this.onDevice.push(this.selectedUnderDevice)
-          this.searched = this.underDevice
-          this.allOnCurrentDevice.push(this.selectedUnderDevice)
-          this.selectedUnderDevice = null
-          this.singleselect = null
-        } else if (this.remove) {
-          if (this.reason == '') {
-            this.snackbarActive = true
-            this.snackbarInfo = '请选择卸载原因'
-            return false
-          }
-          if (this.reason == 'bad' && this.scrapRemark == '') {
-            this.snackbarActive = true
-            this.snackbarInfo = '请填写报废说明'
-            return false
-          }
-          if (this.reason == 'bad') { // 报废，修改设备状态
-            this.selectedOnDevice.devicestatus = 0
-          }
-          this.selectedOnDevice.parentid = ''
-          let index = this.onDevice.indexOf(this.selectedOnDevice)
-          if (index >= 0) {
-            this.onDevice.splice(index, 1)
-          }
-          index = this.allOnCurrentDevice.indexOf(this.selectedOnDevice)
-          if (index >= 0) {
-            this.allOnCurrentDevice.splice(index, 1)
-          }
-          if (this.reason != 'bad') {
-            this.allUnderCurrentDevice.push(this.selectedOnDevice)
-            this.underDevice.push(this.selectedOnDevice)
-            this.searched = this.underDevice
-          }
-          this.reason = ''
-          this.scrapRemark = ''
+
+          this.msg = []
+          this.msg.push(data)
+          this.$ajax.post('data/handle', 'msg=' + JSON.stringify(this.msg))
+            .then(function (response) {
+              if (response.data.errorcode == 0) {
+                parentItem.updatetime = response.data.updatetime
+                childItem.updatetime = response.data.updatetime
+                this_.$store.commit('updateDeviceData', parentItem)
+                this_.$store.commit('updateDeviceData', childItem)
+
+                if (this_.distribution) {
+                  let index = this_.searched.indexOf(this_.selectedUnderDevice)
+                  if (index >= 0){
+                    this_.searched.splice(index, 1)
+                  }
+                  index = this_.allUnderCurrentDevice.indexOf(this_.selectedUnderDevice)
+                  if (index >= 0) {
+                    this_.allUnderCurrentDevice.splice(index, 1)
+                  }
+                  this_.onDevice.push(this_.selectedUnderDevice)
+                  this_.allOnCurrentDevice.push(this_.selectedUnderDevice)
+                }
+
+                this_.snackbarInfo = '操作成功'
+                this_.snackbarActive = true
+              } else {
+                this_.snackbarInfo = '操作失败'
+                this_.snackbarActive = true
+              }
+            })
+            .catch(function (error) {
+              console.log(error)
+              this_.snackbarInfo = '操作失败'
+              this_.snackbarActive = true
+            })
+
+          this.showDialog = false
+
         }
-        this.underDeviceHasParent = false
-        this.addDeviceNoParent = false
-        this.addDeviceHasParent = false
-        this.changeOnUnder = false
-        this.cannotadd = false
-        this.remove = false
-        this.anyparents = false
-        this.showDialog = false
       },
       dialogClose() {
-        this.showDialog = false
-        this.underDeviceHasParent = false
-        this.addDeviceNoParent = false
-        this.addDeviceHasParent = false
-        this.changeOnUnder = false
-        this.cannotadd = false
-        this.remove = false
+        this.distribution = false
+        this.undistribution = false
+        this.uninstall = false
+        this.replace = false
         this.anyparents = false
+        this.showDialog = false
       },
       selectOnDevice(item) {
         this.selectedOnDevice = item
@@ -390,15 +412,23 @@
     created() {
       let this_ = this
       this.$store.state.deviceData.forEach(function (item) {
-        if (item.devicestatus != 0) {
-          this_.allOnCurrentDevice.push(this_.$store.state.deviceData[this_.deviceDataIndex[item.id]])
-        } else {
-          this_.allUnderCurrentDevice.push(this_.$store.state.deviceData[this_.deviceDataIndex[item.id]])
+        if (item.devicestatus != 0) { // 设备状态为0：报废
+          if (item.children.length > 0) { // 有子，即有配属的设备
+            item.children.forEach(function (id) {
+              this_.allOnCurrentDevice.push(this_.$store.state.deviceData[this_.deviceDataIndex[id]])
+            })
+          }else {
+            if (item.parentid == "") { // 只显示未配属的设备
+              this_.allUnderCurrentDevice.push(this_.$store.state.deviceData[this_.deviceDataIndex[item.id]])
+            }
+          }
         }
       })
     },
     watch: {
       selectedPath: function (newValue, oldValue) {
+        this.selectedOnDevice = null
+        this.selectedUnderDevice = null
         if (newValue.length == 0) { // 最顶层父节点(设备号)
           return;
         }
@@ -406,7 +436,7 @@
         if (newValue.length > 1) { // 有多层子节点，父->子->孙子->...
           let children = this.typeData
           for (let i = 0; i < newValue.length - 1; i++) {
-            children = children[newValue[i]].children  // 多层子节点，取最后一个为选择的子节点
+            children = children[newValue[i]].children
           }
           typeid = children[newValue[newValue.length - 1]].model.typeid
         } else { // 只有一层子，父->子

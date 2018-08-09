@@ -5,9 +5,9 @@
               <span>厂家信息管理</span>
           </div>
           <div class="md-toolbar-section-end">
-              <md-button class="md-icon-button" title="添加厂家" @click="addBtn">
-                  <md-icon>add</md-icon>
-              </md-button>
+            <md-button class="md-icon-button" title="添加厂家" @click="addBtn">
+              <md-icon>add</md-icon>
+            </md-button>
           </div>
       </md-toolbar>
       <md-content class="manufacturer">
@@ -97,7 +97,7 @@
                 name: "manufacturerData",
                 type: "delete"
               },
-              actiondata: item
+              actiondata: [item]
             }
             this.msg = []
             this.msg.push(data)
@@ -145,7 +145,7 @@
               name: "manufacturerData",
               type: "update"
             },
-            actiondata: item
+            actiondata: [item]
           }
           this.msg = []
           this.msg.push(data)
@@ -178,7 +178,7 @@
                 name: "manufacturerData",
                 type: "insert"
               },
-              actiondata: item
+              actiondata: [item]
             }
             this.msg = []
             this.msg.push(data)

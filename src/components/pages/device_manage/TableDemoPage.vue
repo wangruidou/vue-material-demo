@@ -82,6 +82,6 @@
 </script>
 
 <style lang="sass" scoped>
-  .demo-page
+  .table-demo-page
     height: 100%
 </style>

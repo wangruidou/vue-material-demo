@@ -156,6 +156,10 @@ export default new Vuex.Store({
       })
       state.deviceDataIndex = dataIndex
       state.deviceData = data
+    },
+    updateDeviceData(state, data) {
+      let index = state.deviceDataIndex[data.deviceid]
+      state.deviceData[index] = data
     }
   },
   getters:{
